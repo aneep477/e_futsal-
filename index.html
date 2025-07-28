@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Perekodan Pentaksiran MPU3421</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f7f9; }
+        .modal-backdrop { background-color: rgba(0,0,0,0.5); }
+        .modal-content { max-height: 90vh; }
+        .level-selected { background-color: #e0f2fe; border-color: #0ea5e9; color: #0369a1; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Sistem Perekodan Pentaksiran</h1>
+            <p class="text-lg text-slate-600 mt-2">MPU3421: Kokurikulum - Permainan (Futsal)</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <!-- Student List -->
+            <aside class="md:col-span-1 lg:col-span-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold mb-4 border-b pb-2">Senarai Pelajar</h2>
+                <input type="text" id="searchInput" placeholder="Cari nama pelajar..." class="w-full px-3 py-2 border border-slate-300 rounded-lg mb-4 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                <div id="studentList" class="space-y-2 overflow-y-auto max-h-[60vh]">
+                    <!-- Student list will be populated by JS -->
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="md:col-span-2 lg:col-span-3">
+                <div id="mainContent" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-h-[70vh] flex items-center justify-center">
+                    <div class="text-center text-slate-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656-.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        <p class="mt-4 text-lg">Sila pilih seorang pelajar dari senarai untuk memulakan pentaksiran.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Assessment Modal -->
+    <div id="assessmentModal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop">
+        <div class="bg-slate-50 rounded-xl shadow-2xl w-11/12 md:w-3/4 lg:w-2/3 modal-content transform transition-all scale-95 opacity-0">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold" id="modalTitle">Borang Pentaksiran</h2>
+                <button id="closeModalBtn" class="text-slate-500 hover:text-slate-800 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 140px);">
+                <div id="modalRubricContainer" class="space-y-4">
+                    <!-- Rubric will be populated by JS -->
+                </div>
+                <div class="mt-6">
+                    <h3 class="font-semibold text-slate-800 mb-2">Bukti Pelaksanaan (Gambar)</h3>
+                    <div class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                        <input type="file" id="imageUpload" class="hidden" accept="image/*">
+                        <button id="uploadBtn" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100">Pilih Gambar</button>
+                        <div id="imagePreviewContainer" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 bg-slate-100 border-t flex justify-between items-center">
+                <div>
+                    <span class="font-semibold">Markah Tugasan:</span>
+                    <span id="modalScore" class="font-bold text-lg text-sky-600">0.00</span>
+                </div>
+                <button id="saveBtn" class="bg-sky-600 text-white px-6 py-2 rounded-lg hover:bg-sky-700 font-semibold">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const studentData = [
+            { id: "2024182440190", name: "AHMAD SYAFIQ DANIAL BIN AHMAD SHAFANDI", ic: "050616-03-0239" },
+            { id: "2024182440191", name: "AIRIN WAFIQAH BINTI MOHAMAD AZRUL", ic: "050123-06-0464" },
+            { id: "2024182440192", name: "AISHAH IZZATI BINTI ABU JAMIL", ic: "050526-10-1566" },
+            { id: "2024182440193", name: "AMZAR MUQRI BIN AB MANAN", ic: "050219-11-0569" },
+            { id: "2024182440194", name: "AZREL SYAHMI BIN MOHD RASHID", ic: "050419-01-1143" },
+            { id: "2024182440195", name: "DANIEL EZULHAZEQ BIN ZAINURIN", ic: "050622-10-0141" },
+            { id: "2024182440196", name: "ISKANDAR ZULQARNAIN BIN MOHD ZAIMI", ic: "050127-14-0509" },
+            { id: "2024182440197", name: "MAIDATUL WAHYU BINTI MOHD ARIF", ic: "050102-06-0190" },
+            { id: "2024182440198", name: "MUHAMMAD ADAM HARIS BIN AHMAD TERMIAZI", ic: "050911-08-0941" },
+            { id: "2024182440199", name: "MUHAMMAD AFEEQ FAKHRULLAH BIN MARZUKI", ic: "050701-03-0049" },
+            { id: "2024182440200", name: "MUHAMMAD AIZUDDIN AZAM BIN JAMIL", ic: "050907-10-0487" },
+            { id: "2024182440201", name: "MUHAMMAD AQIEL KHAIRUDDIN BIN MOHAMMAD SAAD", ic: "050329-05-0253" },
+            { id: "2024182440202", name: "MUHAMMAD DANISH BIN MOHAMAD ZAKRI", ic: "050126-07-0529" },
+            { id: "2024182440203", name: "MUHAMMAD HARRAZ HAKIMI BIN REZAMAN", ic: "050404-10-0135" },
+            { id: "2024182440204", name: "MUHAMMAD NAJIB BIN NAZRI", ic: "050724-05-0165" },
+            { id: "2024182440205", name: "NOR AKMAL DANIEL BIN NOR NEKMAN", ic: "050417-01-0139" },
+            { id: "2024182440206", name: "NUR ALIA IZZATIE BINTI MOHD NASIR", ic: "040828-03-0020" },
+            { id: "2024182440207", name: "NUR BATRISYIA DAMIA BINTI MOHD ZULKIFLI", ic: "040816-03-0162" },
+            { id: "2024182440208", name: "NUR DANIA BATRISYA BINTI MOHAMAD RUDZAY", ic: "051024-07-0290" },
+            { id: "2024182440209", name: "NUR HAFNA BINTI MAHYUN", ic: "050328-01-0954" },
+            { id: "2024182440210", name: "NUR HIDAYAH AFRINA BINTI MOHD YUSOF", ic: "050416-05-0470" },
+            { id: "2024182440211", name: "NUR IZZATI ALYAA BINTI MD LAZIM", ic: "050815-03-1082" },
+            { id: "2024182440212", name: "NUR NABIHAH BINTI AZIHAN", ic: "030209-01-0566" },
+            { id: "2024182440213", name: "NUR SAIDATUL ALISA BINTI ISMAIL", ic: "050925-08-0838" },
+            { id: "2024182440214", name: "RABIYATUL AIN AISYAH BINTI MUHAMAD ASRUL", ic: "040103-06-0070" },
+            { id: "2024182440215", name: "SAMMAITUHA NUR NAJWA BINTI AMRAN", ic: "050912-03-0102" },
+            { id: "2024182440216", name: "SUMAYYAH BINTI CHE MOHD AMIN", ic: "050206-01-1262" },
+            { id: "2024182440217", name: "TUAN MUHAMMAD HANIFF BIN TUAN KHAIRUL AZMAN", ic: "041226-03-0335" },
+            { id: "2024182440218", name: "WAN ASIAH SOFYA BINTI W AZHARAN", ic: "050407-03-1008" }
+        ];
+
+        const rubricData = {
+            hpk1: {
+                title: "Pentaksiran HPK1: Ujian Amali",
+                wajaran: 60,
+                kriteria: [
+                    { nama: '1. Sepakkan & Hantaran Pendek', wajaran: 15 },
+                    { nama: '2. Kemahiran Menjaring', wajaran: 15 },
+                    { nama: '3. Menjaga Gol', wajaran: 10 },
+                    { nama: '4. Kepegawaian (Undang-undang & Teknikal)', wajaran: 20 }
+                ]
+            },
+            hpk2: {
+                title: "Pentaksiran HPK2: Simulasi",
+                wajaran: 40,
+                kriteria: [
+                    { nama: '1. Rancangan Latihan (Dokumen)', wajaran: 10 },
+                    { nama: '2. Pelaksanaan Simulasi & Pengelolaan', wajaran: 15 },
+                    { nama: '3. Aplikasi Pengetahuan Kejurulatihan', wajaran: 10 },
+                    { nama: '4. Kemahiran Komunikasi', wajaran: 5 }
+                ]
+            },
+            aras: ['Lemah', 'Lulus', 'Kepujian', 'Cemerlang', 'Amat Cemerlang']
+        };
+
+        const markConversionTable = {
+            '5':  { 'Amat Cemerlang': [4.5, 5.0], 'Cemerlang': [3.8, 4.4], 'Kepujian': [3.0, 3.7], 'Lulus': [2.5, 2.9], 'Lemah': [0, 2.4] },
+            '10': { 'Amat Cemerlang': [9.0, 10.0], 'Cemerlang': [7.5, 8.9], 'Kepujian': [6.0, 7.4], 'Lulus': [5.0, 5.9], 'Lemah': [0, 4.9] },
+            '15': { 'Amat Cemerlang': [13.5, 15.0], 'Cemerlang': [11.3, 13.4], 'Kepujian': [9.0, 11.2], 'Lulus': [7.5, 8.9], 'Lemah': [0, 7.4] },
+            '20': { 'Amat Cemerlang': [18.0, 20.0], 'Cemerlang': [15.0, 17.9], 'Kepujian': [12.0, 14.9], 'Lulus': [10.0, 11.9], 'Lemah': [0, 9.9] }
+        };
+
+        let appState = {
+            selectedStudentId: null,
+            assessmentData: {},
+            modal: {
+                isOpen: false,
+                type: null, // 'hpk1' or 'hpk2'
+                currentScores: {}
+            }
+        };
+
+        const studentListEl = document.getElementById('studentList');
+        const mainContentEl = document.getElementById('mainContent');
+        const searchInput = document.getElementById('searchInput');
+        const modalEl = document.getElementById('assessmentModal');
+        const modalContentEl = modalEl.querySelector('.modal-content');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalTitleEl = document.getElementById('modalTitle');
+        const modalRubricContainerEl = document.getElementById('modalRubricContainer');
+        const modalScoreEl = document.getElementById('modalScore');
+        const saveBtn = document.getElementById('saveBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const imageUploadInput = document.getElementById('imageUpload');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+
+        function loadDataFromStorage() {
+            const data = localStorage.getItem('assessmentData_MPU3421');
+            if (data) {
+                appState.assessmentData = JSON.parse(data);
+            }
+        }
+
+        function saveDataToStorage() {
+            localStorage.setItem('assessmentData_MPU3421', JSON.stringify(appState.assessmentData));
+        }
+
+        function renderStudentList(filter = '') {
+            studentListEl.innerHTML = '';
+            const filteredStudents = studentData.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
+            
+            if (filteredStudents.length === 0) {
+                studentListEl.innerHTML = `<p class="text-slate-500 p-2">Tiada pelajar ditemui.</p>`;
+                return;
+            }
+
+            filteredStudents.forEach(student => {
+                const studentData = appState.assessmentData[student.id] || {};
+                const hpk1_done = studentData.hpk1 && studentData.hpk1.totalScore !== undefined;
+                const hpk2_done = studentData.hpk2 && studentData.hpk2.totalScore !== undefined;
+                let statusColor = 'bg-slate-200';
+                if (hpk1_done && hpk2_done) {
+                    statusColor = 'bg-green-500';
+                } else if (hpk1_done || hpk2_done) {
+                    statusColor = 'bg-yellow-400';
+                }
+
+                const studentDiv = document.createElement('div');
+                studentDiv.className = `p-3 rounded-lg cursor-pointer hover:bg-sky-100 transition flex items-center justify-between ${appState.selectedStudentId === student.id ? 'bg-sky-100 border-l-4 border-sky-500' : ''}`;
+                studentDiv.dataset.studentId = student.id;
+                studentDiv.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-sm text-slate-800">${student.name}</p>
+                        <p class="text-xs text-slate-500">${student.id}</p>
+                    </div>
+                    <span class="w-3 h-3 rounded-full ${statusColor}" title="Status Pentaksiran"></span>
+                `;
+                studentDiv.addEventListener('click', () => selectStudent(student.id));
+                studentListEl.appendChild(studentDiv);
+            });
+        }
+
+        function selectStudent(studentId) {
+            appState.selectedStudentId = studentId;
+            renderStudentList(searchInput.value);
+            renderMainContent();
+        }
+
+        function renderMainContent() {
+            if (!appState.selectedStudentId) {
+                mainContentEl.innerHTML = `<div class="text-center text-slate-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656-.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    <p class="mt-4 text-lg">Sila pilih seorang pelajar dari senarai untuk memulakan pentaksiran.</p>
+                </div>`;
+                return;
+            }
+
+            const student = studentData.find(s => s.id === appState.selectedStudentId);
+            const studentScores = appState.assessmentData[student.id] || {};
+            
+            const hpk1_score = studentScores.hpk1 ? studentScores.hpk1.totalScore : null;
+            const hpk2_score = studentScores.hpk2 ? studentScores.hpk2.totalScore : null;
+
+            const hpk1_display = hpk1_score !== null ? hpk1_score.toFixed(2) : '0.00';
+            const hpk2_display = hpk2_score !== null ? hpk2_score.toFixed(2) : '0.00';
+
+            const totalScore = (hpk1_score !== null && hpk2_score !== null) ? (hpk1_score + hpk2_score).toFixed(2) : 'N/A';
+
+            mainContentEl.innerHTML = `
+                <div class="p-4">
+                    <h2 class="text-2xl font-bold text-slate-900">${student.name}</h2>
+                    <p class="text-md text-slate-500 mb-6">ID: ${student.id} | No. KP: ${student.ic}</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-slate-50 p-4 rounded-lg border">
+                            <h3 class="font-semibold mb-2">Pentaksiran HPK1: Ujian Amali</h3>
+                            <p class="text-2xl font-bold text-sky-600 mb-3">${hpk1_display} / 60.00</p>
+                            <button data-type="hpk1" class="open-modal-btn w-full bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100">Buka Borang HPK1</button>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-lg border">
+                            <h3 class="font-semibold mb-2">Pentaksiran HPK2: Simulasi</h3>
+                            <p class="text-2xl font-bold text-sky-600 mb-3">${hpk2_display} / 40.00</p>
+                            <button data-type="hpk2" class="open-modal-btn w-full bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100">Buka Borang HPK2</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Ringkasan Keseluruhan</h3>
+                        <p class="text-4xl font-extrabold text-slate-800">${totalScore}</p>
+                    </div>
+                </div>
+            `;
+
+            document.querySelectorAll('.open-modal-btn').forEach(btn => {
+                btn.addEventListener('click', () => openModal(btn.dataset.type));
+            });
+        }
+
+        function openModal(type) {
+            appState.modal.type = type;
+            appState.modal.isOpen = true;
+            
+            const studentScores = appState.assessmentData[appState.selectedStudentId] || {};
+            const savedData = studentScores[type] || {};
+            appState.modal.currentScores = savedData.scores ? { ...savedData.scores } : {};
+
+            const rubric = rubricData[type];
+            modalTitleEl.textContent = rubric.title;
+            modalRubricContainerEl.innerHTML = '';
+
+            rubric.kriteria.forEach((k, index) => {
+                const kriteriaDiv = document.createElement('div');
+                kriteriaDiv.className = 'bg-white p-4 rounded-lg border';
+                
+                let arasHTML = rubricData.aras.map(aras => {
+                    const savedAras = appState.modal.currentScores[index] === aras;
+                    return `
+                        <button class="level-button flex-1 text-xs md:text-sm border-2 border-slate-200 rounded-md p-2 text-center transition hover:bg-slate-100 ${savedAras ? 'level-selected' : ''}"
+                                data-kriteria-index="${index}"
+                                data-aras-name="${aras}"
+                                data-wajaran="${k.wajaran}">
+                            ${aras}
+                        </button>
+                    `;
+                }).join('');
+
+                kriteriaDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-semibold text-slate-700">${k.nama}</h4>
+                        <span class="text-sm font-medium text-slate-500">${k.wajaran} Markah</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        ${arasHTML}
+                    </div>
+                `;
+                modalRubricContainerEl.appendChild(kriteriaDiv);
+            });
+            
+            imagePreviewContainer.innerHTML = '';
+            const savedImg = savedData.image || null;
+            if(savedImg) {
+                const img = document.createElement('img');
+                img.src = savedImg;
+                img.className = 'max-w-xs max-h-40 mx-auto rounded-lg';
+                imagePreviewContainer.appendChild(img);
+            }
+
+            calculateModalScore();
+            modalEl.classList.remove('hidden');
+            modalEl.classList.add('flex');
+            setTimeout(() => modalContentEl.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        function closeModal() {
+            modalContentEl.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modalEl.classList.add('hidden');
+                modalEl.classList.remove('flex');
+                appState.modal.isOpen = false;
+            }, 200);
+        }
+
+        function handleLevelClick(e) {
+            const button = e.target.closest('.level-button');
+            if (!button) return;
+
+            const { kriteriaIndex, arasName } = button.dataset;
+            
+            appState.modal.currentScores[kriteriaIndex] = arasName;
+
+            const parent = button.parentElement;
+            parent.querySelectorAll('.level-button').forEach(btn => btn.classList.remove('level-selected'));
+            button.classList.add('level-selected');
+            
+            calculateModalScore();
+        }
+
+        function calculateModalScore() {
+            let totalScore = 0;
+            const rubric = rubricData[appState.modal.type];
+            rubric.kriteria.forEach((k, index) => {
+                const selectedAras = appState.modal.currentScores[index];
+                if (selectedAras) {
+                    const wajaranStr = k.wajaran.toString();
+                    const range = markConversionTable[wajaranStr][selectedAras];
+                    const score = (range[0] + range[1]) / 2; // Use midpoint
+                    totalScore += score;
+                }
+            });
+            modalScoreEl.textContent = totalScore.toFixed(2);
+        }
+        
+        function handleSave() {
+            if (!appState.selectedStudentId || !appState.modal.type) return;
+
+            const studentId = appState.selectedStudentId;
+            const type = appState.modal.type;
+
+            if (!appState.assessmentData[studentId]) {
+                appState.assessmentData[studentId] = {};
+            }
+
+            let totalScore = 0;
+            const rubric = rubricData[type];
+            const scores = {};
+            rubric.kriteria.forEach((k, index) => {
+                const selectedAras = appState.modal.currentScores[index];
+                scores[index] = selectedAras;
+                if (selectedAras) {
+                    const wajaranStr = k.wajaran.toString();
+                    const range = markConversionTable[wajaranStr][selectedAras];
+                    totalScore += (range[0] + range[1]) / 2;
+                }
+            });
+            
+            const imageEl = imagePreviewContainer.querySelector('img');
+
+            appState.assessmentData[studentId][type] = {
+                totalScore: totalScore,
+                scores: scores,
+                image: imageEl ? imageEl.src : null
+            };
+
+            saveDataToStorage();
+            renderStudentList(searchInput.value);
+            renderMainContent();
+            closeModal();
+        }
+        
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreviewContainer.innerHTML = `<img src="${e.target.result}" class="max-w-xs max-h-40 mx-auto rounded-lg" alt="Bukti Pelaksanaan">`;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Event Listeners
+        searchInput.addEventListener('input', (e) => renderStudentList(e.target.value));
+        closeModalBtn.addEventListener('click', closeModal);
+        modalRubricContainerEl.addEventListener('click', handleLevelClick);
+        saveBtn.addEventListener('click', handleSave);
+        uploadBtn.addEventListener('click', () => imageUploadInput.click());
+        imageUploadInput.addEventListener('change', handleImageUpload);
+
+
+        // Initial Load
+        loadDataFromStorage();
+        renderStudentList();
+        renderMainContent();
+    });
+    </script>
+</body>
+</html>
